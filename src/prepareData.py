@@ -45,7 +45,7 @@ def read_pdb(filename):
 
 def get_centre(filename):
     X_list, Y_list, Z_list, atomtype_list=read_pdb(filename)
-    print(X_list, Y_list, Z_list, atomtype_list)
+    #print(X_list, Y_list, Z_list, atomtype_list)
     #X_c = np.mean(np.array(X_list))
     #Y_c = np.mean(np.array(Y_list))
     #Z_c = np.mean(np.array(Z_list))
@@ -54,8 +54,8 @@ def get_centre(filename):
     X_c = (np.amin(np.array(X_list)) + np.amax(np.array(X_list)))/2
     Y_c = (np.amin(np.array(Y_list)) + np.amax(np.array(Y_list)))/2
     Z_c = (np.amin(np.array(Z_list)) + np.amax(np.array(Z_list)))/2
-    print(X_c)
-    print(Z_c)
+    #print(X_c)
+    #print(Z_c)
     return X_c, Y_c, Z_c
 
 
@@ -70,8 +70,8 @@ def prepare_one_sample(lig, pro, size):
 
     PX_list, PY_list, PZ_list, Patomtype_list = read_pdb(pro)
     LX_list, LY_list, LZ_list, Latomtype_list = read_pdb(lig)
-    print(len(PX_list))
-    print(len(LX_list))
+    #print(len(PX_list))
+    #print(len(LX_list))
 
     image0 = np.zeros([size,size,size])
     image1 = np.zeros([size,size,size])
@@ -104,7 +104,7 @@ def prepare_one_sample(lig, pro, size):
     #print(image2)
     #print(image3)
     sample = np.array((image0, image1, image2, image3))
-    print(sample.shape)
+    #print(sample.shape)
     return sample
 
 
@@ -127,8 +127,8 @@ def create_training_samples(data_path, hf, samples, factor, size):
         # prepare a true complex
         pro_filename = lig_idx + pro_suffix
         lig_filename = lig_idx + lig_suffix
-        print('True ' + lig_filename)
-        print(pro_filename)
+        #print('True ' + lig_filename)
+        #print(pro_filename)
         true_complex = prepare_one_sample(data_path + lig_filename, data_path + pro_filename, size)
 
         #g = hf.create_group(lig_filename)
@@ -144,8 +144,8 @@ def create_training_samples(data_path, hf, samples, factor, size):
             incorrect_pro_idx = random.choice(list(range(1, i-1)) + list(range(i+1, 2000)))
             incorrect_pro_idx = '{:04}'.format(incorrect_pro_idx)
             incorrect_pro_filename = incorrect_pro_idx + pro_suffix
-            print('false ' + lig_filename)
-            print(incorrect_pro_filename)
+            #print('false ' + lig_filename)
+            #print(incorrect_pro_filename)
             false_complex = prepare_one_sample(data_path + lig_filename, data_path + incorrect_pro_filename, size)
 
             #g = hf.create_group(lig_filename + str(k))
@@ -166,11 +166,12 @@ def create_training_samples(data_path, hf, samples, factor, size):
 if __name__ == '__main__':
 
     data_path = "../training_data/"
-    samples = 20
-    size = 30
-    factor = 2
+    samples = 100
+    #samples = 2000
+    size = 60
+    factor = 7
 
-    hf = h5py.File('./training_samples.h5', 'w')
-    #hf = h5py.File('/data2/training_samples.h5', 'w')
+    #hf = h5py.File('./training_samples.h5', 'w')
+    hf = h5py.File('/data2/training_samples.h5', 'w')
     create_training_samples(data_path, hf, samples, factor, size)
     hf.close()
