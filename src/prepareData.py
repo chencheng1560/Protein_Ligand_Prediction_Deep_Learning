@@ -115,6 +115,11 @@ def create_training_samples(data_path, hf, samples, factor, size):
     lig_suffix = '_lig_cg.pdb'
     pro_suffix = '_pro_cg.pdb'
 
+    data = []
+    label = [] # true is 1, false is 0
+    ligand = []
+    protein = []
+
     for i in range(1, samples):
         lig_idx = i
         lig_idx='{:04}'.format(lig_idx)
@@ -126,10 +131,14 @@ def create_training_samples(data_path, hf, samples, factor, size):
         print(pro_filename)
         true_complex = prepare_one_sample(data_path + lig_filename, data_path + pro_filename, size)
 
-        g = hf.create_group(lig_filename)
-        g.create_dataset('data', data=true_complex)
-        g.create_dataset('label', data='true')
-
+        #g = hf.create_group(lig_filename)
+        #g.create_dataset('data', data=true_complex)
+        #g.create_dataset('label', data='true')
+        data.append(true_complex)
+        label.append(1)
+        ligand.append(int(lig_idx))
+        protein.append(int(lig_idx))
+        
         # then prepare N = 7 incorrect complex
         for k in range(factor):
             incorrect_pro_idx = random.choice(list(range(1, i-1)) + list(range(i+1, 2000)))
@@ -139,9 +148,19 @@ def create_training_samples(data_path, hf, samples, factor, size):
             print(incorrect_pro_filename)
             false_complex = prepare_one_sample(data_path + lig_filename, data_path + incorrect_pro_filename, size)
 
-            g = hf.create_group(lig_filename + str(k))
-            g.create_dataset('data', data=false_complex)
-            g.create_dataset('label', data='true')
+            #g = hf.create_group(lig_filename + str(k))
+            #g.create_dataset('data', data=false_complex)
+            #g.create_dataset('label', data='true')
+            
+            data.append(false_complex)
+            label.append(0)
+            ligand.append(int(lig_idx))
+            protein.append(int(incorrect_pro_idx))
+
+    hf.create_dataset("data", data =np.array(data))  
+    hf.create_dataset("label", data =np.array(label))  
+    hf.create_dataset("ligand", data =np.array(ligand))
+    hf.create_dataset("protein", data =np.array(protein))
 
 
 if __name__ == '__main__':
@@ -152,5 +171,6 @@ if __name__ == '__main__':
     factor = 2
 
     hf = h5py.File('./training_samples.h5', 'w')
+    #hf = h5py.File('/data2/training_samples.h5', 'w')
     create_training_samples(data_path, hf, samples, factor, size)
     hf.close()
