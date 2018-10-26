@@ -59,35 +59,35 @@ def get_centre(filename):
     return X_c, Y_c, Z_c
 
 
-def prepare_one_sample(lig, pro):
+def prepare_one_sample(lig, pro, size):
     print("[INFO] Prepare the training sample of" + lig + ".")
 
     X_c, Y_c, Z_c = get_centre(lig)
     # 30 is big.....
-    X_0 = X_c - 30
-    Y_0 = Y_c - 30
-    Z_0 = Z_c - 30
+    X_0 = X_c - size/2
+    Y_0 = Y_c - size/2
+    Z_0 = Z_c - size/2
 
     PX_list, PY_list, PZ_list, Patomtype_list = read_pdb(pro)
     LX_list, LY_list, LZ_list, Latomtype_list = read_pdb(lig)
     print(len(PX_list))
     print(len(LX_list))
 
-    image0 = np.zeros([60,60,60])
-    image1 = np.zeros([60,60,60])
+    image0 = np.zeros([size,size,size])
+    image1 = np.zeros([size,size,size])
     for i in range (len(PX_list)-1):
         x=PX_list[i]
         y=PY_list[i]
         z=PZ_list[i]
         t=Patomtype_list[i]
-        if((np.absolute(x-X_c) < 30) & (np.absolute(y-Y_c) < 30) & (np.absolute(z-Z_c) < 30)):
+        if((np.absolute(x-X_c) < size/2) & (np.absolute(y-Y_c) < size/2) & (np.absolute(z-Z_c) < size/2)):
             if(t == 'p'):
-                image0[min(int(x - X_0), 59)][min(int(y-Y_0),59)][min(int(z-Z_0), 59)] = 1
+                image0[min(int(x - X_0), size-1)][min(int(y-Y_0),size-1)][min(int(z-Z_0), size-1)] = 1
             else:
-                image1[min(int(x - X_0), 59)][min(int(y-Y_0),59)][min(int(z-Z_0), 59)] = 1
+                image1[min(int(x - X_0), size-1)][min(int(y-Y_0),size-1)][min(int(z-Z_0), size-1)] = 1
 
-    image2 = np.zeros([60, 60, 60])
-    image3 = np.zeros([60, 60, 60])
+    image2 = np.zeros([size, size, size])
+    image3 = np.zeros([size, size, size])
     for i in range (len(LX_list)-1):
 
         x=LX_list[i]
@@ -95,11 +95,11 @@ def prepare_one_sample(lig, pro):
         z=LZ_list[i]
         t=Latomtype_list[i]
 
-        if ((np.absolute(x - X_c) < 30) & (np.absolute(y - Y_c) < 30) & (np.absolute(z - Z_c) < 30)):
+        if ((np.absolute(x - X_c) < size/2) & (np.absolute(y - Y_c) < size/2) & (np.absolute(z - Z_c) < size/2)):
             if (t == 'p'):
-                image2[min(int(x - X_0), 59)][min(int(y-Y_0),59)][min(int(z-Z_0), 59)] = 1
+                image2[min(int(x - X_0), size-1)][min(int(y-Y_0),size-1)][min(int(z-Z_0), size-1)] = 1
             else:
-                image3[min(int(x - X_0), 59)][min(int(y-Y_0),59)][min(int(z-Z_0), 59)] = 1
+                image3[min(int(x - X_0), size-1)][min(int(y-Y_0),size-1)][min(int(z-Z_0), size-1)] = 1
 
     #print(image2)
     #print(image3)
@@ -108,14 +108,14 @@ def prepare_one_sample(lig, pro):
     return sample
 
 
-def create_training_samples(data_path, hf):
+def create_training_samples(data_path, hf, samples, factor, size):
     training_complex_number = 2000
     validation_complex_number = 1000
 
     lig_suffix = '_lig_cg.pdb'
     pro_suffix = '_pro_cg.pdb'
 
-    for i in range(1, 2000):
+    for i in range(1, samples):
         lig_idx = i
         lig_idx='{:04}'.format(lig_idx)
 
@@ -124,27 +124,33 @@ def create_training_samples(data_path, hf):
         lig_filename = lig_idx + lig_suffix
         print('True ' + lig_filename)
         print(pro_filename)
-        true_complex = prepare_one_sample(data_path + lig_filename, data_path + pro_filename)
+        true_complex = prepare_one_sample(data_path + lig_filename, data_path + pro_filename, size)
 
         g = hf.create_group(lig_filename)
         g.create_dataset('data', data=true_complex)
         g.create_dataset('label', data='true')
 
         # then prepare N = 7 incorrect complex
-        for k in range(7):
+        for k in range(factor):
             incorrect_pro_idx = random.choice(list(range(1, i-1)) + list(range(i+1, 2000)))
             incorrect_pro_idx = '{:04}'.format(incorrect_pro_idx)
             incorrect_pro_filename = incorrect_pro_idx + pro_suffix
             print('false ' + lig_filename)
             print(incorrect_pro_filename)
-            false_complex = prepare_one_sample(data_path + lig_filename, data_path + incorrect_pro_filename)
+            false_complex = prepare_one_sample(data_path + lig_filename, data_path + incorrect_pro_filename, size)
 
-            #g = hf.create_group(lig_filename + str(k))
-            #g.create_dataset('data', data=false_complex)
-            #g.create_dataset('label', data='true')
+            g = hf.create_group(lig_filename + str(k))
+            g.create_dataset('data', data=false_complex)
+            g.create_dataset('label', data='true')
+
 
 if __name__ == '__main__':
+
     data_path = "../training_data/"
+    samples = 20
+    size = 30
+    factor = 2
+
     hf = h5py.File('./training_samples.h5', 'w')
-    create_training_samples(data_path, hf)
+    create_training_samples(data_path, hf, samples, factor, size)
     hf.close()
