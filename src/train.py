@@ -1,8 +1,14 @@
 from keras import optimizers, losses, Sequential
 from keras.layers import Conv3D, MaxPool3D, Flatten, Dropout, Dense
+from keras.models import load_model
+from sklearn.metrics import confusion_matrix
 from PIL import Image
 import matplotlib.pyplot as plt
 import pdb
+
+
+LOAD_TRAIN = True
+EPOCH_SIZE = 32
 
 def creat_model(input_shape, class_num):
     model = Sequential()
@@ -31,12 +37,23 @@ if __name__ == '__main__':
     pdb.set_trace()
     from protein_ligand_utils import protein_ligand_reader
     train_x, train_y, test_x, test_y = protein_ligand_reader()
-    model = creat_model(input_shape=(60,60,60,4),class_num=2)
-    #model = creat_model(input_shape=(30,30,30,4),class_num=2)
-    #md = creat_model(input_shape=(4,60,60,60),class_num=2)
-    sgd = optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-    model.compile(optimizer=sgd, loss='categorical_crossentropy',metrics=['accuracy'])
-    #md.compile(optimizer=sgd, loss='mean_squared_error')
-    model.fit(x=train_x, y=train_y, epochs=5, verbose=1)
+    if LOAD_TRAIN:
+        model = load_model("100complements_"+str(EPOCH_SIZE)+"epochs_model.h5")
+    else:
+        model = creat_model(input_shape=(60,60,60,4),class_num=2)
+        #model = creat_model(input_shape=(30,30,30,4),class_num=2)
+        #md = creat_model(input_shape=(4,60,60,60),class_num=2)
+        sgd = optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+        model.compile(optimizer=sgd, loss='categorical_crossentropy',metrics=['accuracy'])
+        #md.compile(optimizer=sgd, loss='mean_squared_error')
+        model.fit(x=train_x, y=train_y, epochs=EPOCH_SIZE, verbose=1)
+        pdb.set_trace()
+        model.save("100complements_"+str(EPOCH_SIZE)+"epochs_model.h5")
+        print("Saved model to disk")
+
     loss, acc = model.evaluate(x=test_x, y=test_y)
     print('Test accuracy is {:.4f}'.format(acc))
+    y_pred = model.predict(test_x) 
+    #conf_mat = confusion_matrix(test_y, y_pred)
+    #print("Confusion matrix:")
+    #print(conf_mat)
