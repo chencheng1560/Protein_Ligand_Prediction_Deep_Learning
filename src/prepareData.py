@@ -60,7 +60,7 @@ def get_centre(filename):
 
 
 def prepare_one_sample(lig, pro, size):
-    print("[INFO] Prepare the training sample of" + lig + ".")
+    #print("[INFO] Prepare the training sample of" + lig + ".")
 
     X_c, Y_c, Z_c = get_centre(lig)
     # 30 is big.....
