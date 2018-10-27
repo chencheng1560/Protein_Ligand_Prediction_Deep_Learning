@@ -169,9 +169,9 @@ if __name__ == '__main__':
     samples = 100
     #samples = 2000
     size = 60
-    factor = 7
+    factor = 5
 
     #hf = h5py.File('./training_samples.h5', 'w')
-    hf = h5py.File('/data2/training_samples.h5', 'w')
+    hf = h5py.File('/data/share/jzhubo/training_samples.h5', 'w')
     create_training_samples(data_path, hf, samples, factor, size)
     hf.close()
