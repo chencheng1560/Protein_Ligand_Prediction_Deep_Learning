@@ -2,6 +2,143 @@ import pdb
 import numpy as np
 import random
 import h5py
+import keras
+
+
+MAX_SAMPLE_NUM = 2000
+MATRIX_SIZE = 60
+ERR_SAMPLE = 10
+DATA_PATH = "../training_data/"
+H5_PATH = "/data/share/jzhubo/"
+#H5_PATH = "/data2/cc/"
+
+
+TOTAL_TRAIN_H5 = 19
+TOTAL_VALIDATION_H5 = 1
+
+TOTAL_H5 = TOTAL_TRAIN_H5+TOTAL_VALIDATION_H5
+SAMPLES_PERH5 = int((ERR_SAMPLE+1)*MAX_SAMPLE_NUM/TOTAL_H5)
+SAMPLES_PERH5_CORRECT = MAX_SAMPLE_NUM/TOTAL_H5
+
+BATCHS_PER_H5 = 55
+BATCH_SIZE = SAMPLES_PERH5/BATCHS_PER_H5
+
+if SAMPLES_PERH5 % BATCHS_PER_H5 != 0:
+    print("ERR BATCH_SIZE is not align with SAMPLES_PERH5")
+    exit()
+
+TOTAL_TRAIN_SAMPLE = TOTAL_TRAIN_H5*SAMPLES_PERH5
+TOTAL_VALIDATION_SAMPLE = TOTAL_VALIDATION_H5*SAMPLES_PERH5
+
+
+
+
+partition = {'train': [], 'validation': []}
+#partition = {'train': ['0', '1', '2'], 'validation': ['3']}
+#pdb.set_trace()
+for i in range(0, TOTAL_TRAIN_H5):
+    partition['train'].append(i)
+
+for i in range(0, TOTAL_VALIDATION_H5):
+    partition['validation'].append(i+TOTAL_TRAIN_H5)
+
+#count=0
+#def generate_train():
+def generate_train(batch_size):
+    #global count
+    count=0
+    list_x=[]
+    list_y=[]
+    
+    #pdb.set_trace()
+    
+    while True:
+        h5_id = int(count/int(SAMPLES_PERH5))
+        hf = h5py.File(H5_PATH+'samples_'+str(h5_id)+'.h5', 'r')
+        all_indices = np.arange(int(SAMPLES_PERH5))
+        random.seed(h5_id)
+        random.shuffle(all_indices)
+
+        current_count=int(count%int(SAMPLES_PERH5))
+        #if current_count != count:
+            #pdb.set_trace()
+
+        #batch_num = current_count/batch_size
+        indices=all_indices[current_count:current_count+int(BATCH_SIZE)]
+
+        for i in range(len(indices)):
+            list_x.append(hf['data'][indices[i],])
+            list_y.append(hf['label'][indices[i],])
+
+        x= np.array(list_x)
+        y = keras.utils.to_categorical(np.array(list_y),2)
+        count+=int(BATCH_SIZE)
+        list_x=[]
+        list_y=[]
+
+        #yield (list_x,y)
+        #yield ({'conv3d_1_input':x},{'output':y})
+        yield (x,y)
+        if count >= TOTAL_TRAIN_SAMPLE:
+            count = 0
+        
+#class DataGenerator(keras.utils.Sequence):
+#    'Generates data for Keras'
+#    #def __init__(self, list_IDs, labels, batch_size=32, dim=(32,32,32), n_channels=1,
+#    def __init__(self, list_IDs, batch_size=32, dim=(32,32,32), n_channels=1,
+#                 n_classes=10, shuffle=True):
+#        'Initialization'
+#        pdb.set_trace()
+#        self.dim = dim
+#        self.batch_size = batch_size
+#        #self.labels = labels
+#        self.list_IDs = list_IDs
+#        self.n_channels = n_channels
+#        self.n_classes = n_classes
+#        self.shuffle = shuffle
+#        self.on_epoch_end()
+#
+#    def __len__(self):
+#        'Denotes the number of batches per epoch'
+#        return int(np.floor(len(self.list_IDs) / self.batch_size))
+#
+#    def __getitem__(self, index):
+#        'Generate one batch of data'
+#        # Generate indexes of the batch
+#        indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
+#
+#        # Find list of IDs
+#        list_IDs_temp = [self.list_IDs[k] for k in indexes]
+#
+#        # Generate data
+#        X, y = self.__data_generation(list_IDs_temp)
+#
+#        return X, y
+#
+#    def on_epoch_end(self):
+#        'Updates indexes after each epoch'
+#        self.indexes = np.arange(len(self.list_IDs))
+#        if self.shuffle == True:
+#            np.random.shuffle(self.indexes)
+#
+#    def __data_generation(self, list_IDs_temp):
+#        'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
+#        # Initialization
+#        X = np.empty((self.batch_size, *self.dim, self.n_channels))
+#        y = np.empty((self.batch_size), dtype=int)
+#
+#        # Generate data
+#        for i, ID in enumerate(list_IDs_temp):
+#            # Store sample
+#            #X[i,] = np.load('data/' + ID + '.npy')
+#
+#            # Store class
+#            #y[i] = self.labels[ID]
+#
+#        return X, keras.utils.to_categorical(y, num_classes=self.n_classes)
+#
+
+
 def read_pdb(filename):
 
     with open(filename, 'r') as file:
@@ -60,7 +197,7 @@ def get_centre(filename):
 
 
 def prepare_one_sample(lig, pro, size):
-    #print("[INFO] Prepare the training sample of" + lig + ".")
+    print("[INFO] Prepare the training sample of" + lig + ". pro is " + pro)
 
     X_c, Y_c, Z_c = get_centre(lig)
     # 30 is big.....
@@ -108,9 +245,9 @@ def prepare_one_sample(lig, pro, size):
     return sample
 
 
-def create_training_samples(data_path, hf, samples, factor, size):
-    training_complex_number = 2000
-    validation_complex_number = 1000
+def create_training_samples(data_path, h5_path, samples, factor, size, starting_num, h5_id):
+
+    hf = h5py.File(h5_path+'samples_'+str(h5_id)+'.h5', 'w')
 
     lig_suffix = '_lig_cg.pdb'
     pro_suffix = '_pro_cg.pdb'
@@ -119,8 +256,10 @@ def create_training_samples(data_path, hf, samples, factor, size):
     label = [] # true is 1, false is 0
     ligand = []
     protein = []
-
-    for i in range(1, samples):
+    
+    for i in range(int(starting_num+1), int(starting_num + samples +1)):
+    #for i in range(1, samples):
+        #pdb.set_trace()
         lig_idx = i
         lig_idx='{:04}'.format(lig_idx)
 
@@ -130,12 +269,16 @@ def create_training_samples(data_path, hf, samples, factor, size):
         #print('True ' + lig_filename)
         #print(pro_filename)
         true_complex = prepare_one_sample(data_path + lig_filename, data_path + pro_filename, size)
+        #pdb.set_trace()
+        
+        true_complex = true_complex.transpose([1, 2, 3, 0])
 
         #g = hf.create_group(lig_filename)
         #g.create_dataset('data', data=true_complex)
         #g.create_dataset('label', data='true')
         data.append(true_complex)
         label.append(1)
+        print("true pair label is 1")
         ligand.append(int(lig_idx))
         protein.append(int(lig_idx))
         
@@ -147,6 +290,7 @@ def create_training_samples(data_path, hf, samples, factor, size):
             #print('false ' + lig_filename)
             #print(incorrect_pro_filename)
             false_complex = prepare_one_sample(data_path + lig_filename, data_path + incorrect_pro_filename, size)
+            false_complex = false_complex.transpose([1, 2, 3, 0])
 
             #g = hf.create_group(lig_filename + str(k))
             #g.create_dataset('data', data=false_complex)
@@ -154,6 +298,7 @@ def create_training_samples(data_path, hf, samples, factor, size):
             
             data.append(false_complex)
             label.append(0)
+            print("false pair label is 0")
             ligand.append(int(lig_idx))
             protein.append(int(incorrect_pro_idx))
 
@@ -161,17 +306,19 @@ def create_training_samples(data_path, hf, samples, factor, size):
     hf.create_dataset("label", data =np.array(label))  
     hf.create_dataset("ligand", data =np.array(ligand))
     hf.create_dataset("protein", data =np.array(protein))
+    hf.close()
+
 
 
 if __name__ == '__main__':
 
-    data_path = "../training_data/"
-    samples = 100
-    #samples = 2000
-    size = 60
-    factor = 5
-
     #hf = h5py.File('./training_samples.h5', 'w')
-    hf = h5py.File('/data/share/jzhubo/training_samples.h5', 'w')
-    create_training_samples(data_path, hf, samples, factor, size)
-    hf.close()
+    #hf = h5py.File('/data/share/jzhubo/training_samples.h5', 'w')
+    
+    pdb.set_trace()
+    for h5_id in range(0, TOTAL_H5):
+        starting_num = h5_id * SAMPLES_PERH5_CORRECT
+        create_training_samples(DATA_PATH, H5_PATH, SAMPLES_PERH5_CORRECT, ERR_SAMPLE, MATRIX_SIZE, starting_num, h5_id)
+    
+    #hf.close()
+

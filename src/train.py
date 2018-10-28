@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import pdb
 
 
-LOAD_TRAIN = True
-EPOCH_SIZE = 32
+LOAD_TRAIN = False#True
+EPOCH_SIZE = 3
 
 def creat_model(input_shape, class_num):
     model = Sequential()
@@ -32,23 +32,42 @@ def creat_model(input_shape, class_num):
     model.add(Dense(class_num,activation='softmax'))
     return model
 
-if __name__ == '__main__':
 
-    pdb.set_trace()
-    from protein_ligand_utils import protein_ligand_reader
-    train_x, train_y, test_x, test_y = protein_ligand_reader()
+if __name__ == '__main__':
+    
+    #pdb.set_trace()
+    from prepareData import partition
+    from prepareData import MATRIX_SIZE
+    partition['train']
+    partition['validation']
+
+    #from protein_ligand_utils import protein_ligand_reader
+    #train_x, train_y, test_x, test_y = protein_ligand_reader()
+    
     if LOAD_TRAIN:
-        model = load_model("100complements_"+str(EPOCH_SIZE)+"epochs_model.h5")
+        model = load_model("Trainsamples"+str(TOTAL_TRAIN_SAMPLE)+"_Batchsize"+str(BATCH_SIZE)+"_Errsample"+str(ERR_SAMPLE)+"_Matrixsize"+str(MATRIX_SIZE)+"_Samplesperh5"+str(SAMPLES_PERH5)+"_Epoch"+str(EPOCH_SIZE)+"_model.h5")
     else:
+
+        #pdb.set_trace()
         model = creat_model(input_shape=(60,60,60,4),class_num=2)
         #model = creat_model(input_shape=(30,30,30,4),class_num=2)
-        #md = creat_model(input_shape=(4,60,60,60),class_num=2)
+        
         sgd = optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
         model.compile(optimizer=sgd, loss='categorical_crossentropy',metrics=['accuracy'])
-        #md.compile(optimizer=sgd, loss='mean_squared_error')
-        model.fit(x=train_x, y=train_y, epochs=EPOCH_SIZE, verbose=1)
-        pdb.set_trace()
-        model.save("100complements_"+str(EPOCH_SIZE)+"epochs_model.h5")
+        
+
+        from prepareData import TOTAL_TRAIN_SAMPLE, TOTAL_VALIDATION_SAMPLE,BATCH_SIZE,generate_train
+        from prepareData import SAMPLES_PERH5, ERR_SAMPLE, MATRIX_SIZE
+        model.fit_generator(generator=generate_train(int(BATCH_SIZE)),
+                            steps_per_epoch=int(TOTAL_TRAIN_SAMPLE/BATCH_SIZE), 
+                            epochs=int(EPOCH_SIZE),
+                            use_multiprocessing=True,
+                            workers=32)
+
+
+        #model.fit(x=train_x, y=train_y, epochs=EPOCH_SIZE, verbose=1)
+        #pdb.set_trace()
+        model.save("Trainsamples"+str(TOTAL_TRAIN_SAMPLE)+"_Batchsize"+str(BATCH_SIZE)+"_Errsample"+str(ERR_SAMPLE)+"_Matrixsize"+str(MATRIX_SIZE)+"_Samplesperh5"+str(SAMPLES_PERH5)+"_Epoch"+str(EPOCH_SIZE)+"_model.h5")
         print("Saved model to disk")
 
     loss, acc = model.evaluate(x=test_x, y=test_y)
