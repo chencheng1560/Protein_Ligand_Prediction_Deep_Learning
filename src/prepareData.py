@@ -315,10 +315,14 @@ if __name__ == '__main__':
     #hf = h5py.File('./training_samples.h5', 'w')
     #hf = h5py.File('/data/share/jzhubo/training_samples.h5', 'w')
     
-    pdb.set_trace()
+    ##pdb.set_trace()
     for h5_id in range(0, TOTAL_H5):
         starting_num = h5_id * SAMPLES_PERH5_CORRECT
         create_training_samples(DATA_PATH, H5_PATH, SAMPLES_PERH5_CORRECT, ERR_SAMPLE, MATRIX_SIZE, starting_num, h5_id)
     
+    #generate evaluation data with different distribution
+    ###starting_num = 2850
+    ###create_training_samples(DATA_PATH, H5_PATH, 10, 20, MATRIX_SIZE, starting_num, 888)
+
     #hf.close()
 
