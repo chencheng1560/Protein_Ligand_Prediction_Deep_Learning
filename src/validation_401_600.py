@@ -15,7 +15,7 @@ validate_smaples = configuration.validation_3_validate_smaples
 if __name__ == '__main__':
     lig_suffix = '_lig_cg.pdb'
     pro_suffix = '_pro_cg.pdb'
-    data_path = "../training_data/"
+    data_path = configuration.data_path
     # some parameters
     top10 = 10
     base_index = pro_start_idx

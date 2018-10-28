@@ -1,4 +1,7 @@
 # set some parameters for different validation file
+# the location of training dataset
+data_path = "../training_data/"
+
 model_file = "Trainsamples20900_Batchsize20_Errsample10_Matrixsize60_Samplesperh51100_Epoch3_model.h5"
 
 # total 824 samples to predict
