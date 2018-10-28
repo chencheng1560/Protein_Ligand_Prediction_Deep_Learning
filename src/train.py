@@ -1,14 +1,23 @@
 from keras import optimizers, losses, Sequential
 from keras.layers import Conv3D, MaxPool3D, Flatten, Dropout, Dense
 from keras.models import load_model
+from keras.utils import multi_gpu_model
 from sklearn.metrics import confusion_matrix
+import keras
 from PIL import Image
 import matplotlib.pyplot as plt
 import pdb
+import h5py
+import numpy as np
 
+
+from prepareData import partition,generate_train
+from prepareData import TOTAL_TRAIN_SAMPLE, TOTAL_VALIDATION_SAMPLE,BATCH_SIZE
+from prepareData import SAMPLES_PERH5, ERR_SAMPLE, MATRIX_SIZE,H5_PATH
 
 LOAD_TRAIN = False#True
-EPOCH_SIZE = 3
+MULTIPLE_GPU = True#False
+EPOCH_SIZE = 5
 
 def creat_model(input_shape, class_num):
     model = Sequential()
@@ -32,12 +41,17 @@ def creat_model(input_shape, class_num):
     model.add(Dense(class_num,activation='softmax'))
     return model
 
+def load_eval_h5(path):
+    print("load evaluation file %s",path)
+    hf = h5py.File(H5_PATH+path,'r')
+    x = np.array(hf['data'])
+    y = keras.utils.to_categorical(np.array(hf['label']),2) 
+    return x,y
+    
 
 if __name__ == '__main__':
     
     #pdb.set_trace()
-    from prepareData import partition
-    from prepareData import MATRIX_SIZE
     partition['train']
     partition['validation']
 
@@ -45,34 +59,56 @@ if __name__ == '__main__':
     #train_x, train_y, test_x, test_y = protein_ligand_reader()
     
     if LOAD_TRAIN:
-        model = load_model("Trainsamples"+str(TOTAL_TRAIN_SAMPLE)+"_Batchsize"+str(BATCH_SIZE)+"_Errsample"+str(ERR_SAMPLE)+"_Matrixsize"+str(MATRIX_SIZE)+"_Samplesperh5"+str(SAMPLES_PERH5)+"_Epoch"+str(EPOCH_SIZE)+"_model.h5")
+        model = load_model("../model/Trainsamples"+str(TOTAL_TRAIN_SAMPLE)+"_Batchsize"+str(BATCH_SIZE)+"_Errsample"+str(ERR_SAMPLE)+"_Matrixsize"+str(MATRIX_SIZE)+"_Samplesperfile"+str(SAMPLES_PERH5)+"_Epoch"+str(EPOCH_SIZE)+"_model.h5")
     else:
 
-        #pdb.set_trace()
-        model = creat_model(input_shape=(60,60,60,4),class_num=2)
-        #model = creat_model(input_shape=(30,30,30,4),class_num=2)
+        # multi-gpu training
+        if MULTIPLE_GPU:
+            #pdb.set_trace()
+            import os;os.environ["CUDA_VISIBLE_DEVICES"]="4,5,6,7"
+            #import os;os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
+            #import os;os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3,4,5,6,7"
+            model = creat_model(input_shape=(60,60,60,4), class_num=2)
+            #model = creat_model(input_shape=(30,30,30,4),class_num=2)
+            sgd = optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
         
-        sgd = optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-        model.compile(optimizer=sgd, loss='categorical_crossentropy',metrics=['accuracy'])
+            model = multi_gpu_model(model, gpus=4)
+            model.compile(loss='categorical_crossentropy',
+                                   optimizer='rmsprop',metrics=['accuracy'])
+            
+            model.fit_generator(generator=generate_train(int(BATCH_SIZE)),
+                                steps_per_epoch=int(TOTAL_TRAIN_SAMPLE/BATCH_SIZE), 
+                                epochs=int(EPOCH_SIZE),
+                                use_multiprocessing=True,
+                                workers=32)
+
+            model.save("../model/MultiGpu_Trainsamples"+str(TOTAL_TRAIN_SAMPLE)+"_Batchsize"+str(BATCH_SIZE)+"_Errsample"+str(ERR_SAMPLE)+"_Matrixsize"+str(MATRIX_SIZE)+"_Samplesperfile"+str(SAMPLES_PERH5)+"_Epoch"+str(EPOCH_SIZE)+"_model.h5")
+        else:
+            #single GPU training
+            #pdb.set_trace()
+            model = creat_model(input_shape=(60,60,60,4),class_num=2)
+            #model = creat_model(input_shape=(30,30,30,4),class_num=2)
+        
+            sgd = optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
         
 
-        from prepareData import TOTAL_TRAIN_SAMPLE, TOTAL_VALIDATION_SAMPLE,BATCH_SIZE,generate_train
-        from prepareData import SAMPLES_PERH5, ERR_SAMPLE, MATRIX_SIZE
-        model.fit_generator(generator=generate_train(int(BATCH_SIZE)),
-                            steps_per_epoch=int(TOTAL_TRAIN_SAMPLE/BATCH_SIZE), 
-                            epochs=int(EPOCH_SIZE),
-                            use_multiprocessing=True,
-                            workers=32)
+            model.compile(optimizer=sgd, loss='categorical_crossentropy',metrics=['accuracy'])
+            model.fit_generator(generator=generate_train(int(BATCH_SIZE)),
+                             steps_per_epoch=int(TOTAL_TRAIN_SAMPLE/BATCH_SIZE), 
+                             epochs=int(EPOCH_SIZE),
+                             use_multiprocessing=True,
+                             workers=32)
+            model.fit(x=train_x, y=train_y, epochs=EPOCH_SIZE, verbose=1)
+            #pdb.set_trace()
+            model.save("../model/Trainsamples"+str(TOTAL_TRAIN_SAMPLE)+"_Batchsize"+str(BATCH_SIZE)+"_Errsample"+str(ERR_SAMPLE)+"_Matrixsize"+str(MATRIX_SIZE)+"_Samplesperfile"+str(SAMPLES_PERH5)+"_Epoch"+str(EPOCH_SIZE)+"_model.h5")
+            print("Saved model to disk")
 
-
-        #model.fit(x=train_x, y=train_y, epochs=EPOCH_SIZE, verbose=1)
-        #pdb.set_trace()
-        model.save("Trainsamples"+str(TOTAL_TRAIN_SAMPLE)+"_Batchsize"+str(BATCH_SIZE)+"_Errsample"+str(ERR_SAMPLE)+"_Matrixsize"+str(MATRIX_SIZE)+"_Samplesperh5"+str(SAMPLES_PERH5)+"_Epoch"+str(EPOCH_SIZE)+"_model.h5")
-        print("Saved model to disk")
-
-    loss, acc = model.evaluate(x=test_x, y=test_y)
-    print('Test accuracy is {:.4f}'.format(acc))
-    y_pred = model.predict(test_x) 
-    #conf_mat = confusion_matrix(test_y, y_pred)
-    #print("Confusion matrix:")
+    eval_files=['samples_eval_10sam_10erreachsam.h5','samples_eval_10sam_20erreachsam.h5','samples_eval_10sam_50erreachsam.h5','samples_eval_10sam_100erreachsam.h5','samples_eval_100sam_10erreachsam.h5']
+    for file_name in eval_files:
+        test_x, test_y = load_eval_h5(file_name) 
+        loss, acc = model.evaluate(x=test_x, y=test_y)
+        print('Test accuracy is {:.4f}'.format(acc))
+        y_pred = model.predict(test_x) 
+        #conf_mat = confusion_matrix(test_y, y_pred)
+        #print("Confusion matrix:")
     #print(conf_mat)
