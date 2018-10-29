@@ -15,8 +15,8 @@ if __name__ == '__main__':
     pro_suffix = '_pro_cg.pdb'
     # some parameters
     top10 = 10
-    base_index = configuration.validation_1_pro_start_idx
-    validate_smaples = configuration.validation_1_validate_smaples
+    base_index = configuration.validation_2_pro_start_idx
+    validate_smaples = configuration.validation_2_validate_smaples
     filter_distance_threshold = configuration.filter_distance_threshold
     # import the model
     model_file = configuration.model_file
