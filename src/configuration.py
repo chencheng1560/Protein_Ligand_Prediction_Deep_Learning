@@ -4,6 +4,11 @@ data_path = "../training_data/"
 
 model_file = "Trainsamples20900_Batchsize20_Errsample10_Matrixsize60_Samplesperh51100_Epoch3_model.h5"
 
+filter_distance_threshold = 75
+
+lig_start_idx = 1
+lig_end_idx = 825
+
 # total 824 samples to predict
 # set parameters of validation 1
 validation_1_pro_start_idx = 1

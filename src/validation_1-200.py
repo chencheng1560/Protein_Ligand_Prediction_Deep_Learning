@@ -8,63 +8,60 @@ from filter import get_distance_complex
 from prepareData import prepare_one_sample
 import configuration
 
-model_file = configuration.model_file
-pro_start_idx = configuration.validation_1_pro_start_idx
-validate_smaples = configuration.validation_1_validate_smaples
+data_path = configuration.data_path
 
 if __name__ == '__main__':
     lig_suffix = '_lig_cg.pdb'
     pro_suffix = '_pro_cg.pdb'
-    data_path = configuration.data_path
     # some parameters
     top10 = 10
-    base_index = pro_start_idx
-    filter_distance_threshold = 120
-
+    base_index = configuration.validation_1_pro_start_idx
+    validate_smaples = configuration.validation_1_validate_smaples
+    filter_distance_threshold = configuration.filter_distance_threshold
+    # import the model
+    model_file = configuration.model_file
     model = load_model(model_file)
     # the first row is for pred 1... pre 2....
     # the first col is for protein index ....
-    predictions_top10 = np.zeros([validate_smaples+1, top10+1]).astype(int)
-
+    predictions_top10 = np.zeros([validate_smaples + 1, top10 + 1]).astype(int)
     num_correct_pred = 0
-    row = 0 # record the rows of predictions_top10
+    row = 0  # record the rows of predictions_top10
     # iterate every protein
     for i in range(base_index, validate_smaples + base_index):
         pro_filename = '{:04}'.format(i) + pro_suffix
-        acc_all_lig = []
+        complexes = []
+        record_lig_idx = []
         print(i)
         # iterate every ligand for each protein
-        for k in range(1, 825):
+        for k in range(configuration.lig_start_idx, configuration.lig_end_idx):
             lig_filename = '{:04}'.format(k) + lig_suffix
             dist = get_distance_complex(data_path + lig_filename, data_path + pro_filename)
+            if (dist < filter_distance_threshold):
+                record_lig_idx.append(k)
+                new_complex = prepare_one_sample(data_path + lig_filename, data_path + pro_filename, 60)
+                # new_complex = np.transpose(new_complex)
+                new_complex = new_complex.transpose([1, 2, 3, 0])
+                complexes.append(new_complex)
 
-            if(dist < filter_distance_threshold):
-                complex = prepare_one_sample(data_path + lig_filename, data_path + pro_filename, 60)
-                #complex = complex.transpose([0, 2, 3, 4, 1])
-                complex = np.transpose(complex)
-                complex = np.expand_dims(complex, 0)
-                # predict
-                y_pred = model.predict(complex)
-                acc = y_pred[0][1]
-                acc_all_lig.append(acc)
-                #print(acc)
-            else:
-                acc = 0
-                acc_all_lig.append(acc)
-
+        # predict
+        complexes = np.array(complexes)
+        y_pred = model.predict(complexes)
+        acc_all_lig = y_pred[:, 1]
         sort_acc_idx = np.argsort(acc_all_lig)
-        sort_acc_idx = sort_acc_idx[::-1]  #reversed
+        sort_acc_idx = sort_acc_idx[::-1]  # reversed
 
         # only collect top 10 lig idx
         row += 1
         predictions_top10[row][0] = i
         for j in range(0, min(10, len(sort_acc_idx))):
-            predictions_top10[row][j+1] = sort_acc_idx[j] + 1
-            if((sort_acc_idx[j]+1) == i):
+            predictions_top10[row][j + 1] = record_lig_idx[sort_acc_idx[j]]
+            if (record_lig_idx[sort_acc_idx[j]] == i):
                 num_correct_pred += 1
+                print('current correct number', num_correct_pred)
 
+    # calculate final acc
     acc = num_correct_pred / validate_smaples
     print('accuracy:{:.3f}'.format(acc))
 
-    np.savetxt('v1_test_predictions_of_' + model_file + '_.txt', predictions_top10, fmt='%i', delimiter='\t')
+    np.savetxt('v1_batch_predictions_on_' + model_file + '.txt', predictions_top10, fmt='%i', delimiter='\t')
 
