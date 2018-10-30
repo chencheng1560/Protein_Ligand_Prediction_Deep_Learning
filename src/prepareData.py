@@ -5,13 +5,14 @@ import h5py
 import keras
 
 
+DATA_PATH = "../training_data/"
+H5_PATH = "/data/share/jzhubo/"
+
+
+
 MAX_SAMPLE_NUM = 2000
 MATRIX_SIZE = 60
 ERR_SAMPLE = 10
-DATA_PATH = "../training_data/"
-H5_PATH = "/data/share/jzhubo/"
-#H5_PATH = "/data2/cc/"
-
 
 TOTAL_TRAIN_H5 = 19
 TOTAL_VALIDATION_H5 = 1
