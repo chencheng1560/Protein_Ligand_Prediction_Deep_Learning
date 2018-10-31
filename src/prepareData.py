@@ -291,8 +291,8 @@ def create_training_samples(data_path, h5_path, samples, factor, size, starting_
         
         # then prepare N = 7 incorrect complex
         k = 0
-        while(True):
 
+        for jj in range(100):
             incorrect_pro_idx = random.choice(list(range(1, i-1)) + list(range(i+1, 2000)))
             incorrect_pro_idx = '{:04}'.format(incorrect_pro_idx)
             incorrect_pro_filename = incorrect_pro_idx + pro_suffix
