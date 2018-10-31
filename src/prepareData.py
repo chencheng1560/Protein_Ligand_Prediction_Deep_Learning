@@ -3,8 +3,8 @@ import numpy as np
 import random
 import h5py
 import keras
-
-
+import math
+import configuration
 DATA_PATH = "../training_data/"
 H5_PATH = "/data/share/jzhubo/"
 
@@ -196,6 +196,12 @@ def get_centre(filename):
     #print(Z_c)
     return X_c, Y_c, Z_c
 
+def get_distance_complex(lig, pro):
+    #print("[INFO] checking the distance of " + lig + pro + " complex.")
+    X_c_l, Y_c_l, Z_c_l = get_centre(lig)
+    X_c_p, Y_c_p, Z_c_p = get_centre(pro)
+    dist = math.sqrt((X_c_l - X_c_p) ** 2 + (Y_c_l - Y_c_p) ** 2 + (Z_c_l - Z_c_p) ** 2)
+    return dist
 
 def prepare_one_sample(lig, pro, size):
     print("[INFO] Prepare the training sample of" + lig + ". pro is " + pro)
@@ -284,24 +290,30 @@ def create_training_samples(data_path, h5_path, samples, factor, size, starting_
         protein.append(int(lig_idx))
         
         # then prepare N = 7 incorrect complex
-        for k in range(factor):
+        k = 0
+        while(True):
+
             incorrect_pro_idx = random.choice(list(range(1, i-1)) + list(range(i+1, 2000)))
             incorrect_pro_idx = '{:04}'.format(incorrect_pro_idx)
             incorrect_pro_filename = incorrect_pro_idx + pro_suffix
             #print('false ' + lig_filename)
             #print(incorrect_pro_filename)
-            false_complex = prepare_one_sample(data_path + lig_filename, data_path + incorrect_pro_filename, size)
-            false_complex = false_complex.transpose([1, 2, 3, 0])
+            dist = get_distance_complex(data_path + lig_filename, data_path + incorrect_pro_filename)
+            if(dist < configuration.filter_distance_threshold):
+                k += 1
+                false_complex = prepare_one_sample(data_path + lig_filename, data_path + incorrect_pro_filename, size)
+                false_complex = false_complex.transpose([1, 2, 3, 0])
 
-            #g = hf.create_group(lig_filename + str(k))
-            #g.create_dataset('data', data=false_complex)
-            #g.create_dataset('label', data='true')
+                #g = hf.create_group(lig_filename + str(k))
+                #g.create_dataset('data', data=false_complex)
+                #g.create_dataset('label', data='true')
             
-            data.append(false_complex)
-            label.append(0)
-            print("false pair label is 0")
-            ligand.append(int(lig_idx))
-            protein.append(int(incorrect_pro_idx))
+                data.append(false_complex)
+                label.append(0)
+                print("false pair label is 0")
+                ligand.append(int(lig_idx))
+                protein.append(int(incorrect_pro_idx))
+            if (k==factor): break
 
     hf.create_dataset("data", data =np.array(data))  
     hf.create_dataset("label", data =np.array(label))  
