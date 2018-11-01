@@ -291,7 +291,6 @@ def create_training_samples(data_path, h5_path, samples, factor, size, starting_
         
         # then prepare N = 7 incorrect complex
         k = 0
-
         for jj in range(100):
             incorrect_pro_idx = random.choice(list(range(1, i-1)) + list(range(i+1, 2000)))
             incorrect_pro_idx = '{:04}'.format(incorrect_pro_idx)
@@ -314,6 +313,20 @@ def create_training_samples(data_path, h5_path, samples, factor, size, starting_
                 ligand.append(int(lig_idx))
                 protein.append(int(incorrect_pro_idx))
             if (k==factor): break
+
+        for ii in range(k, factor):
+            incorrect_pro_idx = random.choice(list(range(1, i - 1)) + list(range(i + 1, 2000)))
+            incorrect_pro_idx = '{:04}'.format(incorrect_pro_idx)
+            incorrect_pro_filename = incorrect_pro_idx + pro_suffix
+            false_complex = prepare_one_sample(data_path + lig_filename, data_path + incorrect_pro_filename, size)
+            false_complex = false_complex.transpose([1, 2, 3, 0])
+            data.append(false_complex)
+            label.append(0)
+            print("false pair label is 0")
+            ligand.append(int(lig_idx))
+            protein.append(int(incorrect_pro_idx))
+
+            
 
     hf.create_dataset("data", data =np.array(data))  
     hf.create_dataset("label", data =np.array(label))  
